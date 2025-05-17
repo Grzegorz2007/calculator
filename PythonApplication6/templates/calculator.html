@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        .calculator {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 300px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4caf50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+        }
+        button {
+            background-color: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f8f8;
+        }
+        .result-value {
+            font-weight: bold;
+            color: #4caf50;
+        }
+        .error {
+            color: #ff0000;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4caf50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator" role="application" aria-label="Калькулятор">
+        <h1>Калькулятор</h1>
+        <form id="calculatorForm" onsubmit="handleSubmit(event)">
+            <div class="form-group">
+                <label for="firstNumber">Первое число:</label>
+                <input type="number" 
+                       id="firstNumber" 
+                       name="firstNumber" 
+                       required 
+                       aria-required="true"
+                       step="any">
+            </div>
+            
+            <div class="form-group">
+                <label for="operation">Операция:</label>
+                <select id="operation" 
+                        name="operation" 
+                        required 
+                        aria-required="true"
+                        onchange="handleOperationChange()">
+                    <option value="+">Сложение (+)</option>
+                    <option value="-">Вычитание (-)</option>
+                    <option value="*">Умножение (*)</option>
+                    <option value="/">Деление (/)</option>
+                    <option value="**">Возведение в степень (**)</option>
+                    <option value="%">Процент (%)</option>
+                    <option value="sqrt">Квадратный корень (sqrt)</option>
+                    <option value="log">Логарифм (log)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="secondNumberGroup">
+                <label for="secondNumber">Второе число:</label>
+                <input type="number" 
+                       id="secondNumber" 
+                       name="secondNumber" 
+                       required 
+                       aria-required="true"
+                       step="any">
+            </div>
+
+            <button type="submit" id="calculateButton">Вычислить</button>
+        </form>
+
+        <div class="loading" id="loading" role="status" aria-label="Вычисление..."></div>
+        <div class="result" aria-live="polite">
+            Результат: <span class="result-value" id="result"></span>
+        </div>
+        <div class="error" id="error" aria-live="assertive"></div>
+    </div>
+
+    <script>
+        function handleOperationChange() {
+            const operation = document.getElementById('operation').value;
+            const secondNumberGroup = document.getElementById('secondNumberGroup');
+            const secondNumber = document.getElementById('secondNumber');
+
+            if (operation === 'sqrt') {
+                secondNumberGroup.style.display = 'none';
+                secondNumber.removeAttribute('required');
+                secondNumber.removeAttribute('aria-required');
+                secondNumber.value = '';
+            } else {
+                secondNumberGroup.style.display = 'block';
+                secondNumber.setAttribute('required', 'true');
+                secondNumber.setAttribute('aria-required', 'true');
+            }
+        }
+
+        function validateInput(first, second, operation) {
+            if (!first) return 'Введите первое число';
+            if (operation !== 'sqrt' && !second) return 'Введите второе число';
+            if (operation === '/' && parseFloat(second) === 0) return 'Деление на ноль невозможно';
+            if (operation === 'sqrt' && parseFloat(first) < 0) return 'Нельзя извлечь корень из отрицательного числа';
+            if (operation === 'log') {
+                const firstNum = parseFloat(first);
+                const secondNum = parseFloat(second);
+                if (firstNum <= 0) return 'Логарифм определён только для положительных чисел';
+                if (secondNum <= 0 || secondNum === 1) return 'Основание логарифма должно быть положительным и не равным 1';
+            }
+            return null;
+        }
+
+        function clearForm() {
+            document.getElementById('firstNumber').value = '';
+            document.getElementById('secondNumber').value = '';
+            document.getElementById('operation').value = '+';
+            handleOperationChange();
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            const firstNumber = document.getElementById('firstNumber').value;
+            const secondNumber = document.getElementById('secondNumber').value;
+            const operation = document.getElementById('operation').value;
+            const resultElement = document.getElementById('result');
+            const errorElement = document.getElementById('error');
+            const loadingElement = document.getElementById('loading');
+            const calculateButton = document.getElementById('calculateButton');
+            const form = document.getElementById('calculatorForm');
+
+            // Очищаем предыдущие результаты
+            resultElement.textContent = '';
+            errorElement.textContent = '';
+
+            // Валидация
+            const validationError = validateInput(firstNumber, secondNumber, operation);
+            if (validationError) {
+                errorElement.textContent = validationError;
+                return;
+            }
+
+            const data = {
+                first: firstNumber,
+                operation: operation
+            };
+            if (operation !== 'sqrt') {
+                data.second = secondNumber;
+            }
+
+            try {
+                // Показываем индикатор загрузки и блокируем кнопку
+                loadingElement.style.display = 'block';
+                calculateButton.disabled = true;
+
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const responseData = await response.json();
+
+                if (responseData.error) {
+                    errorElement.textContent = responseData.error;
+                } else {
+                    resultElement.textContent = responseData.result;
+                    // Очищаем форму только при успешном вычислении
+                    if (form.dataset.autoClear === 'true') {
+                        clearForm();
+                    }
+                }
+            } catch (e) {
+                errorElement.textContent = e.message || 'Ошибка при выполнении запроса';
+                console.error(e);
+            } finally {
+                // Скрываем индикатор загрузки и разблокируем кнопку
+                loadingElement.style.display = 'none';
+                calculateButton.disabled = false;
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            // Устанавливаем фокус на первое поле
+            document.getElementById('firstNumber').focus();
+            
+            // Инициализируем состояние второго поля
+            handleOperationChange();
+            
+            // Добавляем обработку клавиши Enter для полей ввода
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        document.getElementById('calculateButton').click();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
